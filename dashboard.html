@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+  <html lang="pt-BR">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciador - Rosa Oriental</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+  :root{
+  --dark:#12080A;
+--panel:#1D1013;
+--panel-2:#241318;
+--border:rgba(250,240,232,0.10);
+--cream:#FAF7F2;
+  --muted:rgba(250,240,232,0.5);
+--gold:#C9A96E;
+  --good:#4ADE80;
+--bad:#F2545B;
+  }
+*{box-sizing:border-box;}
+body{margin:0; background:var(--dark); color:var(--cream); font-family:'Plus Jakarta Sans', sans-serif; -webkit-font-smoothing:antialiased;}
+.topbar{display:flex; justify-content:space-between; align-items:center; padding:24px 40px; border-bottom:1px solid var(--border);}
+.brand{font-size:20px; font-weight:600; letter-spacing:0.3px;}
+.brand span{color:var(--gold);}
+.updated{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:1px;}
+main{max-width:1200px; margin:0 auto; padding:32px 40px;}
+.section-label{font-size:12px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin:0 0 16px;}
+.kpi-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:40px;}
+.kpi-card{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:18px 20px;}
+.kpi-label{font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); margin-bottom:8px;}
+.kpi-value{font-family:'Oswald', sans-serif; font-size:26px; font-weight:500;}
+.kpi-value.good{color:var(--good);}
+.kpi-value.bad{color:var(--bad);}
+.kpi-value.gold{color:var(--gold);}
+.table-wrap{background:var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:24px;}
+table{width:100%; border-collapse:collapse; font-size:13px;}
+th{text-align:left; color:var(--muted); font-weight:500; text-transform:uppercase; letter-spacing:0.5px; font-size:10px; padding:12px 16px; border-bottom:1px solid var(--border); background:var(--panel-2);}
+td{padding:13px 16px; border-bottom:1px solid var(--border);}
+tr:last-child td{border-bottom:none;}
+td.nome{font-weight:600;}
+td.num{font-family:'Oswald', sans-serif; font-weight:400;}
+.badge{display:inline-block; padding:2px 8px; border-radius:6px; font-family:'Oswald', sans-serif; font-size:12px;}
+.badge.good{color:var(--good); background:rgba(74,222,128,0.12);}
+.badge.bad{color:var(--bad); background:rgba(242,84,91,0.12);}
+.empty-note{font-size:12px; color:var(--muted); font-style:italic; padding:16px;}
+.loading, .error{text-align:center; padding:60px 20px; color:var(--muted); font-size:14px;}
+.error{color:var(--bad);}
+.note{font-size:12px; color:var(--muted); margin-top:24px;}
+</style>
+  </head>
+  <body>
+  <div class="topbar">
+  <div class="brand">Gerenciador <span>Rosa Oriental</span></div>
+  <div class="updated" id="updated">Carregando...</div>
+  </div>
+  <main>
+  <div id="content" class="loading">Buscando dados da Airtable...</div>
+  </main>
+  <script>
+  async function loadDashboard(){
+const contentEl = document.getElementById('content');
+const updatedEl = document.getElementById('updated');
+try{
+const res = await fetch('/api/dashboard-data');
+const data = await res.json();
+if(data.status !== 'ok'){ throw new Error(data.message || 'Erro desconhecido'); }
+const fmtMoney = n => 'R$ ' + Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  const dt = new Date(data.atualizadoEm);
+updatedEl.textContent = 'Atualizado ' + dt.toLocaleString('pt-BR');
+  const lucro = data.totals.faturamento - data.totals.gasto;
+const roasGeral = data.totals.gasto > 0 ? data.totals.faturamento / data.totals.gasto : 0;
+let html = '';
+html += '<p class="section-label">Visão geral</p>';
+html += '<div class="kpi-grid">';
+html += '<div class="kpi-card"><div class="kpi-label">Gasto</div><div class="kpi-value bad">'+fmtMoney(data.totals.gasto)+'</div></div>';
+html += '<div class="kpi-card"><div class="kpi-label">Faturamento</div><div class="kpi-value good">'+fmtMoney(data.totals.faturamento)+'</div></div>';
+html += '<div class="kpi-card"><div class="kpi-label">Lucro</div><div class="kpi-value '+(lucro>=0?'good':'bad')+'">'+fmtMoney(lucro)+'</div></div>';
+html += '<div class="kpi-card"><div class="kpi-label">ROAS geral</div><div class="kpi-value gold">'+roasGeral.toFixed(2)+'x</div></div>';
+html += '<div class="kpi-card"><div class="kpi-label">Leads</div><div class="kpi-value">'+data.totals.leads+'</div></div>';
+html += '<div class="kpi-card"><div class="kpi-label">Compras</div><div class="kpi-value">'+data.totals.vendasCount+'</div></div>';
+html += '</div>';
+html += '<p class="section-label">Gerenciador por criativo</p>';
+html += '<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Invest</th><th>Leads</th><th>Compras</th><th>CPA</th><th>Receita</th><th>ROAS</th></tr></thead><tbody>';
+data.criativos.forEach(c => {
+  const cpa = c.vendasCount > 0 ? fmtMoney(c.gasto / c.vendasCount) : '—';
+  const roas = c.gasto > 0 ? c.faturamento / c.gasto : 0;
+const roasClass = roas >= 1 ? 'good' : 'bad';
+html += '<tr>';
+html += '<td class="nome">'+c.nome+'</td>';
+html += '<td class="num">'+fmtMoney(c.gasto)+'</td>';
+html += '<td class="num">'+c.leads+'</td>';
+html += '<td class="num">'+c.vendasCount+'</td>';
+html += '<td class="num">'+cpa+'</td>';
+html += '<td class="num">'+fmtMoney(c.faturamento)+'</td>';
+html += '<td><span class="badge '+roasClass+'">'+roas.toFixed(2)+'x</span></td>';
+html += '</tr>';
+});
+html += '</tbody></table></div>';
+if(data.criativos.length === 0){ html += '<p class="empty-note">Nenhum criativo lançado ainda.</p>'; }
+html += '<p class="note">Impressões, cliques, CTR, CPC e iniciou-checkout ainda não entram aqui — o sync do Meta hoje só busca gasto e leads. Dá pra acrescentar depois.</p>';
+contentEl.className = '';
+  contentEl.innerHTML = html;
+}catch(err){
+  contentEl.className = 'error';
+contentEl.textContent = 'Não consegui carregar os dados: ' + err.message;
+updatedEl.textContent = 'Erro ao atualizar';
+}
+}
+loadDashboard();
+</script>
+  </body>
+  </html>
+  
